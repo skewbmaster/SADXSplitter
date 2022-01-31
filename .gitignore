@@ -3,8 +3,6 @@ obj/
 /packages/
 riderModule.iml
 /_ReSharper.Caches/
-.idea/.idea.SADXSplitter/.idea/encodings.xml
-.idea/.idea.SADXSplitter/.idea/vcs.xml
-.idea/.idea.SADXSplitter/.idea/indexLayout.xml
+.idea/
 LiveSplit/
 LiveSplitCore/
