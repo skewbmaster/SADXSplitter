@@ -6,6 +6,7 @@ using System.Reflection;
 using System.Windows.Forms;
 using System.Xml;
 using LiveSplit.Model;
+using LiveSplit.Options;
 using LiveSplit.UI;
 using LiveSplit.UI.Components;
 
@@ -13,14 +14,20 @@ namespace SADXSplitter
 {
     public class SplitterComponent : LogicComponent
     {
+        public SADXSettings Settings { get; set; }
+
+        public LiveSplitState state;
+        public TimerModel timer;
+
         public SplitterComponent(LiveSplitState state)
         {
-            
+            Settings = new SADXSettings();
+            this.state = state;
         }
 
         public override Control GetSettingsControl(LayoutMode mode)
         {
-            throw new NotImplementedException();
+            return Settings;
         }
 
         public override XmlNode GetSettings(XmlDocument document)
