@@ -19,9 +19,79 @@ namespace SADXSplitter
 {
     public partial class SADXSettings : UserControl
     {
+        public bool start;
+        public bool split;
+        public bool reset;
+        
+        private Dictionary<string, bool> state;
+        public ASLSettings settings;
+        
         public SADXSettings()
         {
             InitializeComponent();
+        }
+
+        public void InitASLSettings(ASLSettings settings)
+        {
+            this.settings = settings;
+            
+            this.settingsTree.BeginUpdate();
+            this.settingsTree.Nodes.Clear();
+
+            var values = new Dictionary<string, bool>();
+            var flat = new Dictionary<string, TreeNode>();
+
+            foreach (var setting in settings.OrderedSettings)
+            {
+                bool value = setting.Value;
+
+
+                TreeNode node = new TreeNode
+                {
+                    Text = setting.Label,
+                    Tag = setting,
+                    Checked = value,
+                    //ContextMenuStrip = ,
+                    ToolTipText = setting.ToolTip
+                };
+                setting.Value = value;
+
+                if (setting.Parent == null)
+                {
+                    this.settingsTree.Nodes.Add(node);
+                }
+                else if (flat.ContainsKey(setting.Parent))
+                {
+                    flat[setting.Parent].Nodes.Add(node);
+                    //flat[setting.Parent].ContextMenuStrip = this.treeContextMenu;
+                }
+                
+                flat.Add(setting.Id, node);
+                values.Add(setting.Id, value);
+            }
+
+            foreach (var node in flat.Where(item => !item.Value.Checked))
+            {
+                UpdateGrayedOut(node.Value);
+            }
+
+            state = values;
+            
+            settingsTree.ExpandAll();
+            settingsTree.EndUpdate();
+
+            if (this.settingsTree.Nodes.Count > 0)
+            {
+                this.settingsTree.Nodes[0].EnsureVisible();
+            }
+
+            UpdateCustomSettingsVisibility();
+        }
+        
+        private void UpdateCustomSettingsVisibility()
+        {
+            bool show = this.settingsTree.GetNodeCount(false) > 0;
+            this.settingsTree.Visible = show;
         }
         
         private void UpdateGrayedOut(TreeNode node)
@@ -35,6 +105,19 @@ namespace SADXSplitter
                     return n.Checked || !node.Checked;
                 }, node.Nodes);
             }
+        }
+        
+        private void UpdateNodesCheckedState(IReadOnlyDictionary<string, bool> settingValues, TreeNodeCollection nodes = null)
+        {
+            if (settingValues == null)
+                return;
+
+            UpdateNodesCheckedState(setting =>
+            {
+                var id = setting.Id;
+
+                return settingValues.ContainsKey(id) ? settingValues[id] : setting.Value;
+            }, nodes);
         }
         
         private void UpdateNodesCheckedState(Func<ASLSetting, bool> func, TreeNodeCollection nodes = null)
@@ -63,15 +146,24 @@ namespace SADXSplitter
                     UpdateNodesInTree(func, node.Nodes);
             }
         }
+        
+        private static void UpdateNodeCheckedState(Func<ASLSetting, bool> func, TreeNode node)
+        {
+            var setting = (ASLSetting) node.Tag;
+            bool check = func(setting);
+
+            if (node.Checked != check)
+                node.Checked = check;
+        }
 
         private void SADXSettings_Load(object sender, EventArgs e)
         {
-            throw new System.NotImplementedException();
+            
         }
 
         private void settingsTree_BeforeCheck(object sender, TreeViewCancelEventArgs e)
         {
-            throw new System.NotImplementedException();
+            
         }
 
         private void settingsTree_AfterCheck(object sender, TreeViewEventArgs e)
