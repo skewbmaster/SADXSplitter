@@ -12,7 +12,7 @@ namespace SADXSplitter
         public string Description => "In-game Timer and Autosplitter for SADX";
         
         public ComponentCategory Category => ComponentCategory.Information;
-        public IComponent Create(LiveSplitState state) { return new SplitterComponent(state); }
+        public IComponent Create(LiveSplitState state) { return new SADXComponent(state); }
         public string UpdateName => ComponentName;
         public string UpdateURL => "https://raw.githubusercontent.com/skewbmaster/SADXSplitter/master/";
         public string XMLURL => UpdateURL + "Components/Updates.xml";

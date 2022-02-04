@@ -19,21 +19,25 @@ namespace SADXSplitter
 {
     public partial class SADXSettings : UserControl
     {
-        public bool start;
-        public bool split;
-        public bool reset;
+        public bool startOption { get; set; }
+        public bool splitOption { get; set; }
+        public bool resetOption { get; set; }
         
         private Dictionary<string, bool> state;
-        public ASLSettings settings;
+        private ASLSettings settings;
         
         public SADXSettings()
         {
             InitializeComponent();
+
+            startOption = true;
+            splitOption = true;
+            resetOption = false;
         }
 
-        public void InitASLSettings(ASLSettings settings)
+        public void InitAslSettings(ASLSettings aslSettings)
         {
-            this.settings = settings;
+            this.settings = aslSettings;
             
             this.settingsTree.BeginUpdate();
             this.settingsTree.Nodes.Clear();
@@ -41,7 +45,7 @@ namespace SADXSplitter
             var values = new Dictionary<string, bool>();
             var flat = new Dictionary<string, TreeNode>();
 
-            foreach (var setting in settings.OrderedSettings)
+            foreach (ASLSetting setting in settings.OrderedSettings)
             {
                 bool value = setting.Value;
 
@@ -51,7 +55,7 @@ namespace SADXSplitter
                     Text = setting.Label,
                     Tag = setting,
                     Checked = value,
-                    //ContextMenuStrip = ,
+                    ContextMenuStrip = this.treeContextMenuSmall,
                     ToolTipText = setting.ToolTip
                 };
                 setting.Value = value;
@@ -63,7 +67,7 @@ namespace SADXSplitter
                 else if (flat.ContainsKey(setting.Parent))
                 {
                     flat[setting.Parent].Nodes.Add(node);
-                    //flat[setting.Parent].ContextMenuStrip = this.treeContextMenu;
+                    flat[setting.Parent].ContextMenuStrip = this.treeContextMenu;
                 }
                 
                 flat.Add(setting.Id, node);
@@ -88,90 +92,85 @@ namespace SADXSplitter
             UpdateCustomSettingsVisibility();
         }
         
-        private void UpdateCustomSettingsVisibility()
-        {
-            bool show = this.settingsTree.GetNodeCount(false) > 0;
-            this.settingsTree.Visible = show;
-        }
-        
-        private void UpdateGrayedOut(TreeNode node)
-        {
-            // Only change color of childnodes if this node isn't already grayed out
-            if (node.ForeColor != SystemColors.GrayText)
-            {
-                UpdateNodesInTree(n =>
-                {
-                    n.ForeColor = node.Checked ? SystemColors.WindowText : SystemColors.GrayText;
-                    return n.Checked || !node.Checked;
-                }, node.Nodes);
-            }
-        }
-        
-        private void UpdateNodesCheckedState(IReadOnlyDictionary<string, bool> settingValues, TreeNodeCollection nodes = null)
-        {
-            if (settingValues == null)
-                return;
-
-            UpdateNodesCheckedState(setting =>
-            {
-                var id = setting.Id;
-
-                return settingValues.ContainsKey(id) ? settingValues[id] : setting.Value;
-            }, nodes);
-        }
-        
-        private void UpdateNodesCheckedState(Func<ASLSetting, bool> func, TreeNodeCollection nodes = null)
-        {
-            if (nodes == null)
-                nodes = this.settingsTree.Nodes;
-
-            UpdateNodesInTree(node =>
-            {
-                var setting = (ASLSetting) node.Tag;
-                bool check = func(setting);
-
-                if (node.Checked != check)
-                    node.Checked = check;
-
-                return true;
-            }, nodes);
-        }
-        
-        private static void UpdateNodesInTree(Func<TreeNode, bool> func, TreeNodeCollection nodes)
-        {
-            foreach (TreeNode node in nodes)
-            {
-                bool includeChildNodes = func(node);
-                if (includeChildNodes)
-                    UpdateNodesInTree(func, node.Nodes);
-            }
-        }
-        
-        private static void UpdateNodeCheckedState(Func<ASLSetting, bool> func, TreeNode node)
-        {
-            var setting = (ASLSetting) node.Tag;
-            bool check = func(setting);
-
-            if (node.Checked != check)
-                node.Checked = check;
-        }
-
         private void SADXSettings_Load(object sender, EventArgs e)
         {
+            startCheckBox.DataBindings.Clear();
+            splitCheckBox.DataBindings.Clear();
+            resetCheckBox.DataBindings.Clear();
             
+            startCheckBox.DataBindings.Add("Checked", this, "startOption", false, DataSourceUpdateMode.OnPropertyChanged);
+            splitCheckBox.DataBindings.Add("Checked", this, "splitOption", false, DataSourceUpdateMode.OnPropertyChanged);
+            resetCheckBox.DataBindings.Add("Checked", this, "resetOption", false, DataSourceUpdateMode.OnPropertyChanged);
         }
 
-        private void settingsTree_BeforeCheck(object sender, TreeViewCancelEventArgs e)
+        #region XML Settings Code
+        public void SetSettings(XmlNode node)
         {
+            XmlElement element = (XmlElement) node;
+
+            if (element.IsEmpty) return;
             
+            startOption = SettingsHelper.ParseBool(element["startOption"]);
+            splitOption = SettingsHelper.ParseBool(element["splitOption"]);
+            resetOption = SettingsHelper.ParseBool(element["resetOption"]);
+
+            ParseSettingsFromXml(element);
         }
 
-        private void settingsTree_AfterCheck(object sender, TreeViewEventArgs e)
+        public XmlNode GetSettings(XmlDocument document)
         {
-            var setting = (ASLSetting) e.Node.Tag;
-            setting.Value = e.Node.Checked;
-            
-            UpdateGrayedOut(e.Node);
+            XmlElement node = document.CreateElement("Settings");
+
+            AppendSettingsToXml(document, node);
+            SettingsHelper.CreateSetting(document, node, "startOption", startOption);
+            SettingsHelper.CreateSetting(document, node, "splitOption", splitOption);
+            SettingsHelper.CreateSetting(document, node, "resetOption", resetOption);
+
+            return node;
         }
+        
+        private void AppendSettingsToXml(XmlDocument document, XmlNode parent)
+        {
+            XmlElement aslParent = document.CreateElement("CustomSettings");
+
+            foreach (var setting in state)
+            {
+                XmlElement element = SettingsHelper.ToElement(document, "Setting", setting.Value);
+                XmlAttribute id = SettingsHelper.ToAttribute(document, "id", setting.Key);
+                // In case there are other setting types in the future
+                XmlAttribute type = SettingsHelper.ToAttribute(document, "type", "bool");
+
+                element.Attributes.Append(id);
+                element.Attributes.Append(type);
+                aslParent.AppendChild(element);
+            }
+
+            parent.AppendChild(aslParent);
+        }
+        
+        private void ParseSettingsFromXml(XmlElement data)
+        {
+            XmlElement customSettingsNode = data["CustomSettings"];
+
+            if (customSettingsNode != null && customSettingsNode.HasChildNodes)
+            {
+                foreach (XmlElement element in customSettingsNode.ChildNodes)
+                {
+                    if (element.Name != "Setting")
+                        continue;
+
+                    string id = element.Attributes["id"].Value;
+                    string type = element.Attributes["type"].Value;
+
+                    if (id == null || type != "bool") continue;
+                    bool value = SettingsHelper.ParseBool(element);
+                    state[id] = value;
+                }
+            }
+
+            // Update tree with loaded state (in case the tree is already populated)
+            UpdateNodesCheckedState(state);
+        }
+        #endregion
     }
 }

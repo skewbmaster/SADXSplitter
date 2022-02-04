@@ -58,6 +58,7 @@
         </Reference>
     </ItemGroup>
     <ItemGroup>
+        <Compile Include="Memory.cs" />
         <Compile Include="SADXComponent.cs" />
         <Compile Include="Properties\AssemblyInfo.cs" />
         <Compile Include="SADXFactory.cs" />
@@ -67,6 +68,8 @@
         <Compile Include="SADXSettings.Designer.cs">
           <DependentUpon>SADXSettings.cs</DependentUpon>
         </Compile>
+        <Compile Include="SADXSettingsExtension.cs" />
+        <Compile Include="SADXSplitter.cs" />
     </ItemGroup>
     <ItemGroup>
       <Content Include="Components\Updates.xml" />
